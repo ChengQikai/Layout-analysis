@@ -5,14 +5,14 @@ from scipy import misc
 from scipy.signal import savgol_filter
 import numpy as np
 import tensorflow as tf
-from SegmentationModel import SegmentationModel
+from UnetModel import UnetModel as Model
 import matplotlib.pyplot as plt
 
 
 def parse_argument():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-m', '--model', help='Model name', default='', required=False)
+        '-sm', '--save-model', help='Model name', default=False, required=False)
     parser.add_argument(
         '-i', '--images', help='Path to input image', default='./data/inputs', required=False)
     parser.add_argument(
@@ -32,11 +32,11 @@ def parse_argument():
 
 
 class TrainModel:
-    def __init__(self, batch_size, img_size=300,steps=10000, model_name='', output="."):
+    def __init__(self, batch_size, img_size=300, steps=10000, save_model=False, output="."):
         self.batch_size = batch_size
         self.img_size = img_size
-        self.model_name = model_name
-        self.model = SegmentationModel(batch_size)
+        self.save_model = save_model
+        self.model = Model(batch_size, depth=32)
         self.images_list = None
         self.labels_list = None
         self.steps = steps
@@ -56,7 +56,7 @@ class TrainModel:
                 img = misc.imread(images_path + '/' + name)
                 if img.shape[0] >= self.img_size and img.shape[1] >= self.img_size:
                     label = misc.imread(labels_path + '/' + name, mode='L')
-                    img = img/255.0 - 0.5
+                    img = img / 255.0 - 0.5
                     self.images_list.append(img)
                     self.labels_list.append(label)
                     count += 1
@@ -84,6 +84,7 @@ class TrainModel:
                 feed_dict = {self.model.tf_train_dataset: batch_data, self.model.tf_train_labels: batch_labels,
                              self.model.tf_train_mode: True}
                 _, l = session.run([self.model.optimizer, self.model.loss], feed_dict=feed_dict)
+                print('{}: {}'.format(step, l))
                 loss_list.append(l)
                 if step != 0 and step % 100 == 0:
                     batch_data, batch_labels = self.get_batch()
@@ -104,7 +105,7 @@ class TrainModel:
                         plt.clf()
                         ax = plt.subplot(1, 4, 1)
                         ax.set_title("Input")
-                        plt.imshow(batch_data[i]+0.5)
+                        plt.imshow(batch_data[i] + 0.5)
                         ax = plt.subplot(1, 4, 2)
                         ax.set_title("Label")
                         label = batch_labels[i]
@@ -123,9 +124,7 @@ class TrainModel:
                         ax = plt.subplot(1, 4, 4)
                         ax.set_title("Output Prob")
                         plt.imshow(output[i][:, :, 1])
-
                         plt.savefig('{}/overview/{}/{}'.format(self.output, step, i))
-
 
     def pixel_accuracy(self, outputs, label):
         outputs = np.array(outputs > 0.5, dtype="int")
@@ -154,7 +153,8 @@ def prepare_folder(path):
 
 def main():
     args = parse_argument()
-    trainer = TrainModel(int(args.batch_size), int(args.image_size), int(args.steps), args.model, args.output)
+    trainer = TrainModel(int(args.batch_size), int(args.image_size), int(args.steps), args.save_model == 'True',
+                         args.output)
     trainer.load_data(args.images, args.labels, max_samples=int(args.max_samples))
     prepare_folder(args.output + '/loss')
     prepare_folder(args.output + '/accuracy')

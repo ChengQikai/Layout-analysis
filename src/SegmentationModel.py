@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 class SegmentationModel:
-    def __init__(self, batch_size=24, number_of_class=2, kernel_size=5, depth=5, learning_rate=0.001):
+    def __init__(self, batch_size=24, number_of_class=2, kernel_size=5, depth=8, learning_rate=0.001):
         self.depth = depth
         self.kernel_size = kernel_size
         self.batch_size = batch_size
@@ -43,8 +43,8 @@ class SegmentationModel:
             self.saver = saver
             self.tf_train_mode = tf_train_mode
 
-    def convolution_step(self, data):
-        hidden = tf.layers.conv2d(data, self.depth, self.kernel_size, (1, 1), padding="SAME")
+    def convolution_step(self, data, depth, size=3):
+        hidden = tf.layers.conv2d(data, depth, self.kernel_size, (1, 1), padding="SAME")
         hidden = tf.layers.batch_normalization(hidden, center=True, scale=False)
         return tf.nn.relu(hidden)
 
@@ -52,5 +52,5 @@ class SegmentationModel:
         hidden = data
         with tf.variable_scope('convolution_net', reuse=tf.AUTO_REUSE):
             for i in range(5):
-                hidden = self.convolution_step(hidden)
+                hidden = self.convolution_step(hidden, self.depth)
             return tf.layers.conv2d(hidden, self.number_of_class, 1, (1, 1), padding="SAME", name="final")
