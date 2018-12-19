@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 def parse_argument():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-sm', '--save-model', help='Model name', default=False, required=False)
+        '-m', '--model', help='Path to Model to load', default='', required=False)
     parser.add_argument(
         '-i', '--images', help='Path to input image', default='./data/inputs', required=False)
     parser.add_argument(
@@ -32,10 +32,10 @@ def parse_argument():
 
 
 class TrainModel:
-    def __init__(self, batch_size, img_size=300, steps=10000, save_model=False, output="."):
+    def __init__(self, batch_size, img_size=300, steps=10000, model_path='', output="."):
         self.batch_size = batch_size
         self.img_size = img_size
-        self.save_model = save_model
+        self.model_path = model_path
         self.model = Model(batch_size, depth=32)
         self.images_list = None
         self.labels_list = None
@@ -79,6 +79,9 @@ class TrainModel:
         accuracy_list = list()
         with tf.Session(graph=self.model.graph) as session:
             tf.global_variables_initializer().run()
+            if self.model_path != '':
+                self.model.saver.restore(session, tf.train.latest_checkpoint(self.model_path))
+            self.model.saver.save(session, self.output + '/model/segmentaiton-model')
             for step in range(self.steps + 1):
                 batch_data, batch_labels = self.get_batch()
                 feed_dict = {self.model.tf_train_dataset: batch_data, self.model.tf_train_labels: batch_labels,
@@ -125,6 +128,8 @@ class TrainModel:
                         ax.set_title("Output Prob")
                         plt.imshow(output[i][:, :, 1])
                         plt.savefig('{}/overview/{}/{}'.format(self.output, step, i))
+                    self.model.saver.save(session, self.output + '/model/segmentaiton-model', global_step=step,
+                                          write_meta_graph=False)
 
     def pixel_accuracy(self, outputs, label):
         outputs = np.array(outputs > 0.5, dtype="int")
@@ -153,7 +158,7 @@ def prepare_folder(path):
 
 def main():
     args = parse_argument()
-    trainer = TrainModel(int(args.batch_size), int(args.image_size), int(args.steps), args.save_model == 'True',
+    trainer = TrainModel(int(args.batch_size), int(args.image_size), int(args.steps), args.model,
                          args.output)
     trainer.load_data(args.images, args.labels, max_samples=int(args.max_samples))
     prepare_folder(args.output + '/loss')
