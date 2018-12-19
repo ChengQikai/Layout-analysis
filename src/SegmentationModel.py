@@ -34,7 +34,7 @@ class SegmentationModel:
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             with tf.control_dependencies(update_ops):
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
-            self.saver = tf.train.Saver(max_to_keep=2, keep_checkpoint_every_n_hours=2)
+            self.saver = tf.train.Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2)
             self.tf_train_dataset = tf_train_dataset
             self.tf_train_labels = tf_train_labels
             self.logits_train = logits_train
