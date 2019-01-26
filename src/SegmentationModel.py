@@ -28,12 +28,16 @@ class SegmentationModel:
             tf_train_dataset = tf.placeholder(tf.float32, shape=(None, None, None, self.num_channels))
             tf_train_labels = tf.placeholder(tf.int32, shape=(None, None, None))
             tf_train_mode = tf.placeholder(tf.bool)
-            logits_train = self.forward(tf_train_dataset)
-            self.output_map = tf.nn.softmax(logits_train)
+            
+            logits_train = self.forward(tf_train_dataset, tf_train_mode)
+            self.output_map = tf.nn.softmax(logits_train, name="output_map")
             loss = tf.losses.sparse_softmax_cross_entropy(tf_train_labels, logits_train)
+            
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            
             with tf.control_dependencies(update_ops):
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
+            
             self.saver = tf.train.Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2)
             self.tf_train_dataset = tf_train_dataset
             self.tf_train_labels = tf_train_labels
@@ -42,14 +46,14 @@ class SegmentationModel:
             self.loss = loss
             self.tf_train_mode = tf_train_mode
 
-    def convolution_step(self, data, depth, size=3):
+    def convolution_step(self, data, depth, size=3, train=True):
         hidden = tf.layers.conv2d(data, depth, self.kernel_size, (1, 1), padding="SAME")
-        hidden = tf.layers.batch_normalization(hidden, center=True, scale=False)
+        hidden = tf.layers.batch_normalization(hidden, center=True, scale=False, training=train)
         return tf.nn.relu(hidden)
 
-    def forward(self, data):
+    def forward(self, data, train):
         hidden = data
         with tf.variable_scope('convolution_net', reuse=tf.AUTO_REUSE):
             for i in range(5):
-                hidden = self.convolution_step(hidden, self.depth)
+                hidden = self.convolution_step(hidden, self.depth, train=train)
             return tf.layers.conv2d(hidden, self.number_of_class, 1, (1, 1), padding="SAME", name="final")
