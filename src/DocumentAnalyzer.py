@@ -6,7 +6,6 @@ from scipy import ndimage as ndi
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
 import scipy.ndimage.measurements as mnts
-import matplotlib.pyplot as plt
 
 
 class DocumentAnalyzer:

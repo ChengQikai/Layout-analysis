@@ -4,8 +4,8 @@ import tensorflow as tf
 
 class UnetModel(SegmentationModel):
     def __init__(self, batch_size=24, number_of_class=2, kernel_size=5, depth=8, learning_rate=0.001, unet_steps=3):
-        super().__init__(batch_size,number_of_class, kernel_size, depth, learning_rate)
         self.unet_steps = unet_steps
+        super().__init__(batch_size, number_of_class, kernel_size, depth, learning_rate)
 
     def convolution_step(self, data, depth, size=3, train=True):
         hidden = tf.layers.conv2d(data, depth, size, (1, 1), padding="SAME")

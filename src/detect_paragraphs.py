@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 import skimage.draw as skd
 import random
 
+
 def main():
-    input_path = 'F:\\splited_dataset\\test\\316931.jpg'
+    input_path = 'C:\\Users\\david\\Desktop\\document_segmentation\\316931.jpg'
     analyzer = DocumentAnalyzer()
-    coords = analyzer.get_document_paragraphs(input_path)
+    coordinates = analyzer.get_document_paragraphs(input_path)
     img = misc.imread(input_path, mode="RGB")
     seg_img = img.copy()
     plt.subplot(1, 2, 1)
@@ -17,7 +18,7 @@ def main():
     r = 18
     g = 159
     b = 220
-    for rect in coords:
+    for rect in coordinates:
         rr, cc = skd.rectangle((rect[0][1], rect[0][0]), (rect[2][1], rect[2][0]))
         seg_img[rr, cc] = (r, g, b)
         r = r + random.randint(10, 160) % 255
@@ -32,3 +33,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
