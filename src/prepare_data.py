@@ -53,10 +53,13 @@ def create_label(image, xml_path, scale):
             point = point_string.split(',')
             poly_points.append((int(int(point[1])*scale), int(int(point[0])*scale)))
 
+        line_points = poly_points.copy()
+        line_points.append(line_points[0])
         poly = np.array(poly_points)
         poly = list(map(tuple, poly))
 
         ImageDraw.Draw(img).polygon(poly, fill=1)
+        ImageDraw.Draw(img).line(line_points, width=2, fill=2)
 
     return np.array(img)
 
@@ -76,6 +79,9 @@ def main():
     img_files = [filename for filename in files if filename.endswith('.jpg')]
     scale = float(args.scale)
 
+
+    actual = 0
+    count = len(xml_files)
     for xml_name in xml_files:
         img_name = xml_name.replace('.xml', '.jpg')
         if img_name in img_files:
@@ -83,6 +89,9 @@ def main():
             new_name = img_name.replace('.jpg', '.png')
             misc.imsave(args.output_folder + '/inputs/' + new_name, img)
             misc.imsave(args.output_folder + '/labels/' + new_name, label)
+        actual += 1
+        print('{}/{}'.format(actual,count))
+        
     print('Completed')
     return 0
 

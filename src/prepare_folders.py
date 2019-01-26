@@ -9,14 +9,14 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-x', '--xml-path', help='Path to folder where are page xml.',
-        default='C:/Users/david/Documents/parsed_impact', required=False)
+        default='D:/xml', required=False)
     parser.add_argument(
         '-i', '--img-path', help='Path to folder where are page images.',
         default='F:/impact_dataset', required=False)
     parser.add_argument(
         '-o', '--output-path', help='Path to output folder.', default='D:/BP/output', required=False)
     parser.add_argument(
-        '-q', '--quantity', help='Quantity of data.', default=300, required=False)
+        '-q', '--quantity', help='Quantity of data.', default=-1, required=False)
     args = parser.parse_args()
     return args
 
@@ -42,8 +42,12 @@ def main():
     img_names = os.listdir(args.img_path)
     img_names = [filename for filename in img_names if filename.endswith('.jpg')]
     wanted = int(args.quantity)
+    if wanted < 0:
+        wanted = len(xml_names)
 
     for x in range(0, wanted):
+        if len(xml_names) == 0:
+            break
         ret = find_copy_files(img_names, xml_names, args.img_path, args.xml_path, args.output_path)
         if ret == -1:
             return
