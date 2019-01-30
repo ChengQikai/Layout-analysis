@@ -20,7 +20,7 @@ class DocumentAnalyzer:
         segmentation_mask = self.get_segmentation_map(probability_maps)
         clusters_labels = self.clustering(segmentation_mask)
         coordinates = self.get_coordinates(clusters_labels, origin_width, origin_height)
-        return coordinates
+        return coordinates, origin_width, origin_height
 
     def get_probability_mask(self, img):
         with tf.Session(graph=self.__model.graph) as session:
@@ -44,7 +44,7 @@ class DocumentAnalyzer:
         np.putmask(segmentation_mask, segmentation_mask == 2, 0)
         boolean_map = segmentation_mask.astype(bool)
         distance = ndi.distance_transform_edt(boolean_map)
-        local_maxi = peak_local_max(distance, indices=False, footprint=np.ones((3, 3)),
+        local_maxi = peak_local_max(distance, indices=False, footprint=np.ones((8, 8)),
                                     labels=boolean_map)
         markers = ndi.label(local_maxi)[0]
         labels = watershed(-distance, markers, mask=boolean_map)
