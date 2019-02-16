@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 import lxml.etree as ET
 from PIL import Image, ImageDraw
-
+import os
 
 def pixel_accuracy(output, label):
     correct = np.sum(np.equal(output, label))
@@ -28,6 +28,9 @@ def get_segmentation_map(outputs):
 
 def best_dice(a, b):
     sum_a = 0
+
+    if len(a) == 0:
+        return 0
 
     for ai in a:
         max_value = 0
@@ -109,4 +112,37 @@ def create_page_xml(coordinates, width, height, filename):
         region_index += 1
 
     return ET.tostring(root, encoding='utf-8',  pretty_print=True)
+
+
+def evaluate_symetric_best_dice(first_xml, second_xml):
+    first_xml_coordinates, width, height = get_coordinates_from_xml(first_xml)
+    second_xml_coordinates, _, _ = get_coordinates_from_xml(second_xml)
+    first_maps, second_maps = get_maps(first_xml_coordinates, second_xml_coordinates, width, height)
+    return symmetric_best_dice(first_maps, second_maps)
+
+
+def evaluate_folder_accuracy(first_folder, second_folder):
+    first_folder_names = os.listdir(first_folder)
+    second_folder_names = os.listdir(second_folder)
+
+    first_folder_names = [filename for filename in first_folder_names if filename.endswith('.xml')]
+    second_folder_names = [filename for filename in second_folder_names if filename.endswith('.xml')]
+
+    sum = 0
+    count = 0
+    result = []
+
+    for name in first_folder_names:
+        if name in second_folder_names:
+            accuracy = evaluate_symetric_best_dice('{}{}'.format(first_folder, name),
+                                                   '{}/{}'.format(second_folder, name))
+            print(accuracy)
+            result.append((name, accuracy))
+            sum += accuracy
+            count += 1
+
+    if count == 0:
+        return 0
+
+    return sum / count, sorted(result, key=lambda x: x[1])
 

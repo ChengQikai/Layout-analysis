@@ -5,9 +5,26 @@ import matplotlib.pyplot as plt
 import skimage.draw as skd
 import random
 import HelperMethods
+import argparse
+import os
 
 
-def show_graph(input_path, coordinates):
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-i', '--input-path', help='Path to folder where are input images.',
+        default='', required=True)
+    parser.add_argument(
+        '-o', '--output-path', help='Path where save xml files.',
+        default='', required=True)
+    parser.add_argument(
+        '-f', '--footprint-size', help='Footprint size.', required=False)
+
+    args = parser.parse_args()
+    return args
+
+
+def show_graph(input_path, coordinates, filename=''):
     img = misc.imread(input_path, mode="RGB")
     seg_img = img.copy()
     plt.subplot(1, 2, 1)
@@ -25,18 +42,37 @@ def show_graph(input_path, coordinates):
 
     plt.subplot(1, 2, 2)
     plt.imshow(seg_img)
-    plt.show()
+    plt.savefig(filename)
+
+
+import random
 
 
 def main():
-    input_path = 'C:\\Users\\david\\Desktop\\document_segmentation\\316931'
-    filename = input_path.split('\\')[-1]
+    args = parse_arguments()
+    input_path = args.input_path
     analyzer = DocumentAnalyzer()
-    coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + '.jpg')
-    show_graph(input_path + '.jpg', coordinates)
-    xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
-    with open('test.xml', 'wb') as f:
-        f.write(xml_string)
+
+    if args.footprint_size:
+        analyzer.set_footprint_size(int(args.footprint_size))
+
+    names = os.listdir(input_path)
+    images_names = [filename for filename in names if filename.endswith('.jpg')]
+    random.shuffle(images_names)
+
+    # os.makedirs(args.output_path)
+
+    length = len(images_names)
+    count = 0
+    for img in images_names:
+        filename = img.replace('.jpg', '')
+        coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img)
+        xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
+        show_graph(input_path + img, coordinates, '{}/{}.jpg'.format(args.output_path, filename))
+        with open('{}/{}.xml'.format(args.output_path, filename), 'wb') as f:
+            f.write(xml_string)
+        count += 1
+        print('Completed: {}/{}'.format(count, length))
     return 0
 
 

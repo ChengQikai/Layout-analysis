@@ -1,6 +1,6 @@
 import sys
 import argparse
-from HelperMethods import get_maps, get_coordinates_from_xml, symmetric_best_dice
+from HelperMethods import evaluate_symetric_best_dice
 
 
 def parse_argument():
@@ -15,10 +15,7 @@ def parse_argument():
 
 def main():
     args = parse_argument()
-    first_xml_coordinates, width, height = get_coordinates_from_xml(args.first_xml)
-    second_xml_coordinates, _, _ = get_coordinates_from_xml(args.second_xml)
-    first_maps, second_maps = get_maps(first_xml_coordinates, second_xml_coordinates, width, height)
-    accuracy = symmetric_best_dice(first_maps, second_maps)
+    accuracy = evaluate_symetric_best_dice(args.first_xml, args.second_xml)
     print(accuracy)
 
     return 0

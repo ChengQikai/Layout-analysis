@@ -15,6 +15,8 @@ def parse_arguments():
         '-p', '--output-folder', help='Path to output folder.', default='D:\BP\data\\', required=False)
     parser.add_argument(
         '-s', '--scale', help='How to scale data.', default=1.0, required=False)
+    parser.add_argument(
+        '-e', '--edge', help='Options "vertical" or "full".', default='', required=False)
     args = parser.parse_args()
     return args
 
@@ -39,7 +41,7 @@ def prepare_output_folder(path):
             os.makedirs(path + '/labels')
 
 
-def create_label(image, xml_path, scale):
+def create_label(image, xml_path, scale, edge):
     img_size = (image.shape[:2])
     root = ET.parse(xml_path).getroot()
     img = Image.new("L", (img_size[1], img_size[0]), 0)
@@ -55,19 +57,25 @@ def create_label(image, xml_path, scale):
 
         line_points = poly_points.copy()
         line_points.append(line_points[0])
+
         poly = np.array(poly_points)
         poly = list(map(tuple, poly))
-
         ImageDraw.Draw(img).polygon(poly, fill=1)
+
+        # if edge == 'full':
         ImageDraw.Draw(img).line(line_points, width=2, fill=2)
+        # elif edge == 'vertical':
+        #     for i in range(1, len(line_points)):
+        #         # if
+        #         ImageDraw.Draw(img).line([line_points[i-1], line_points[i]], width=2, fill=2)
 
     return np.array(img)
 
 
-def process_data(input_folder, img_name, xml_name, scale):
+def process_data(input_folder, img_name, xml_name, scale, edge):
     img = misc.imread(input_folder + '/' + img_name, mode="RGB")
     img = misc.imresize(img, scale)
-    label = create_label(img, input_folder + xml_name, scale)
+    label = create_label(img, input_folder + xml_name, scale, edge)
     return img, label
 
 
@@ -79,13 +87,12 @@ def main():
     img_files = [filename for filename in files if filename.endswith('.jpg')]
     scale = float(args.scale)
 
-
     actual = 0
     count = len(xml_files)
     for xml_name in xml_files:
         img_name = xml_name.replace('.xml', '.jpg')
         if img_name in img_files:
-            img, label = process_data(args.input_folder, img_name, xml_name, scale)
+            img, label = process_data(args.input_folder, img_name, xml_name, scale, args.edge)
             new_name = img_name.replace('.jpg', '.png')
             misc.imsave(args.output_folder + '/inputs/' + new_name, img)
             misc.imsave(args.output_folder + '/labels/' + new_name, label)

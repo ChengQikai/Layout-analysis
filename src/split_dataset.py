@@ -1,8 +1,8 @@
 import os
 from random import randint
 
-book_folder_path = 'F:\impact_struct'
-
+book_folder_path = 'F:\\structured_smaller'
+output_path = 'F:\\smaller_splited_dataset'
 
 folders = os.listdir(book_folder_path)
 folders_length = len(folders)
@@ -19,8 +19,8 @@ while train_dataset_length > 0:
 test_dataset_names = folders
 
 for train_dataset in train_books_names:
-    os.system('python prepare_folders.py -x "F:\impact_struct\{}" -o "../data/splited_dataset/train"'
-              .format(train_dataset))
+    os.system('python prepare_folders.py -i "{}/{}" -x "{}/{}" -o "{}/train"'
+              .format(book_folder_path, train_dataset, book_folder_path, train_dataset, output_path))
 for test_dataset in test_dataset_names:
-    os.system('python prepare_folders.py -x "F:\impact_struct\{}" -o "../data/splited_dataset/test"'
-              .format(test_dataset))
+    os.system('python prepare_folders.py -i "{}/{}" -x "{}/{}" -o "{}/test"'
+              .format(book_folder_path, test_dataset, book_folder_path, test_dataset, output_path))
