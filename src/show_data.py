@@ -47,6 +47,7 @@ def main():
             accuracy = evaluate_symetric_best_dice(xml_path + '\\' + xml_file, orig_xml_path + '\\' + xml_file)
             plt.title(accuracy)
             plt.imshow(img_rect)
+            plt.show()
             plt.savefig('{}{}_{}'.format(out, accuracy, img_file))
             # plt.savefig('{}/{}'.format(out, img_file))
     return 0

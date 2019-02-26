@@ -4,3 +4,7 @@ data
 output
 experiments/
 test.py
+dbscan/*
+results/*
+model/*
+file.pickle

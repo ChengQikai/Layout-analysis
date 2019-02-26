@@ -3,15 +3,15 @@ from shutil import copyfile
 import random
 
 
-path = 'F:\\impact_struct'
-out = 'F:\\structured_smaller\\'
+path = 'D:\\DATA\\impact_struct'
+out = 'D:\\structured_smaller2\\'
 
 folders = os.listdir(path)
 for folder in folders:
     xml_files = os.listdir('{}/{}'.format(path, folder))
     xml_files = [file for file in xml_files if file.endswith('.xml')]
     random.shuffle(xml_files)
-    xml_files = xml_files[:30]
+    xml_files = xml_files[:20]
     new_folder = ''.join(e for e in folder if e.isalnum())
     if os.path.exists(out + new_folder):
         continue

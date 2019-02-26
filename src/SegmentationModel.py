@@ -12,6 +12,7 @@ class SegmentationModel:
         self.graph = None
         self.tf_train_dataset = None
         self.tf_train_labels = None
+        self.tf_train_weights = None
         self.tf_train_mode = None
         self.logits_train = None
         self.output_map = None
@@ -27,11 +28,12 @@ class SegmentationModel:
         with self.graph.as_default():
             tf_train_dataset = tf.placeholder(tf.float32, shape=(None, None, None, self.num_channels))
             tf_train_labels = tf.placeholder(tf.int32, shape=(None, None, None))
+            tf_train_weights = tf.placeholder(tf.int32, shape=(None, None, None))
             tf_train_mode = tf.placeholder(tf.bool)
             
             logits_train = self.forward(tf_train_dataset, tf_train_mode)
             self.output_map = tf.nn.softmax(logits_train, name="output_map")
-            loss = tf.losses.sparse_softmax_cross_entropy(tf_train_labels, logits_train)
+            loss = tf.losses.sparse_softmax_cross_entropy(tf_train_labels, logits_train, weights=tf_train_weights)
             
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             
@@ -41,6 +43,7 @@ class SegmentationModel:
             self.saver = tf.train.Saver(max_to_keep=4, keep_checkpoint_every_n_hours=2)
             self.tf_train_dataset = tf_train_dataset
             self.tf_train_labels = tf_train_labels
+            self.tf_train_weights = tf_train_weights
             self.logits_train = logits_train
             self.optimizer = optimizer
             self.loss = loss

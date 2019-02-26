@@ -1,8 +1,8 @@
 import os
 from random import randint
 
-book_folder_path = 'F:\\structured_smaller'
-output_path = 'F:\\smaller_splited_dataset'
+book_folder_path = 'D:\\structured_smaller2'
+output_path = 'D:\\smaller_splited_dataset2'
 
 folders = os.listdir(book_folder_path)
 folders_length = len(folders)

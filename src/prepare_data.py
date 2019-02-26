@@ -39,12 +39,15 @@ def prepare_output_folder(path):
         os.makedirs(path + '/inputs')
     if not os.path.exists(path + '/labels'):
             os.makedirs(path + '/labels')
+    if not os.path.exists(path + '/weights_map'):
+        os.makedirs(path + '/weights_map')
 
 
 def create_label(image, xml_path, scale, edge):
     img_size = (image.shape[:2])
     root = ET.parse(xml_path).getroot()
     img = Image.new("L", (img_size[1], img_size[0]), 0)
+    weights_map = Image.new("L", (img_size[1], img_size[0]), 1)
 
     for region in root.iter('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}TextRegion'):
         coordinates = region.find('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}Coords')
@@ -58,25 +61,29 @@ def create_label(image, xml_path, scale, edge):
         line_points = poly_points.copy()
         line_points.append(line_points[0])
 
+        min_coords = np.amin(poly_points, axis=0)
+        max_coords = np.amax(poly_points, axis=0)
+
+        area = (max_coords[0] - min_coords[0]) * (max_coords[1] - min_coords[1])
+
         poly = np.array(poly_points)
         poly = list(map(tuple, poly))
         ImageDraw.Draw(img).polygon(poly, fill=1)
 
-        # if edge == 'full':
-        ImageDraw.Draw(img).line(line_points, width=2, fill=2)
-        # elif edge == 'vertical':
-        #     for i in range(1, len(line_points)):
-        #         # if
-        #         ImageDraw.Draw(img).line([line_points[i-1], line_points[i]], width=2, fill=2)
-
-    return np.array(img)
+        ImageDraw.Draw(img).line([(min_coords[0], min_coords[1]),(min_coords[0], max_coords[1])], width=4, fill=2)
+        ImageDraw.Draw(img).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=4, fill=2)
+        # ImageDraw.Draw(img).line(line_points, width=4, fill=2)
+        # ImageDraw.Draw(weights_map).line(line_points, width=4, fill=5)
+        ImageDraw.Draw(weights_map).line([(min_coords[0], min_coords[1]), (min_coords[0], max_coords[1])], width=4, fill=2)
+        ImageDraw.Draw(weights_map).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=4, fill=2)
+    return np.array(img), np.array(weights_map), 0
 
 
 def process_data(input_folder, img_name, xml_name, scale, edge):
     img = misc.imread(input_folder + '/' + img_name, mode="RGB")
     img = misc.imresize(img, scale)
-    label = create_label(img, input_folder + xml_name, scale, edge)
-    return img, label
+    label, weights_map, score = create_label(img, input_folder + xml_name, scale, edge)
+    return img, label, weights_map, score
 
 
 def main():
@@ -92,12 +99,13 @@ def main():
     for xml_name in xml_files:
         img_name = xml_name.replace('.xml', '.jpg')
         if img_name in img_files:
-            img, label = process_data(args.input_folder, img_name, xml_name, scale, args.edge)
+            img, label, weigths_map, score = process_data(args.input_folder, img_name, xml_name, scale, args.edge)
             new_name = img_name.replace('.jpg', '.png')
             misc.imsave(args.output_folder + '/inputs/' + new_name, img)
             misc.imsave(args.output_folder + '/labels/' + new_name, label)
+            misc.imsave(args.output_folder + '/weights_map/' + new_name, weigths_map)
         actual += 1
-        print('{}/{}'.format(actual,count))
+        print('{}/{}: {}'.format(actual,count,score))
         
     print('Completed')
     return 0

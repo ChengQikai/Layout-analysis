@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 from sklearn.cluster import DBSCAN
 from skimage import measure
+from skimage.segmentation import slic
+
 
 
 def get_img_coords(img, coords):
@@ -30,7 +32,7 @@ class DocumentAnalyzer:
     def __init__(self, scale=0.23, footprint_size=8):
         self.__scale = scale
         self.__model = Model(24, depth=32, number_of_class=3)
-        self.__restore_path = '../experiments/unet/09/model/'
+        self.__restore_path = '../model/'
         self.__footprint_size = footprint_size
 
     def get_document_paragraphs(self, document_path):
@@ -73,15 +75,21 @@ class DocumentAnalyzer:
         return (x + y + z)[0]
 
     def clustering(self, segmentation_mask):
-        #numpy where
-        np.putmask(segmentation_mask, segmentation_mask == 2, 0)
-        # boolean_map = segmentation_mask.astype(bool)
-        # distance = ndi.distance_transform_edt(boolean_map)
-        # local_maxi = peak_local_max(distance, indices=False, footprint=np.ones(
-        #     (self.__footprint_size, self.__footprint_size)), labels=boolean_map)
-        # markers = ndi.label(local_maxi)[0]
         labels = measure.label(segmentation_mask, background=0)
-        # labels = watershed(-distance, markers, mask=boolean_map)
+        return labels
+
+    def clustering(self, segmentation_mask):
+        # labels = measure.label(segmentation_mask, background=0)
+        labels = slic(segmentation_mask, n_segments=500, compactness=20)
+        return labels
+
+    def watershed_clustering(self, segmentation_mask):
+        boolean_map = segmentation_mask.astype(bool)
+        distance = ndi.distance_transform_edt(boolean_map)
+        local_maxi = peak_local_max(distance, indices=False, footprint=np.ones(
+            (self.__footprint_size, self.__footprint_size)), labels=boolean_map)
+        markers = ndi.label(local_maxi)[0]
+        labels = watershed(-distance, markers, mask=boolean_map)
         return labels
 
     def get_coordinates(self, cluster_labels, max_width, max_height):
@@ -121,6 +129,9 @@ class DocumentAnalyzer:
         self.__footprint_size = value
 
     def dbscan_clustering(self, segmentation_mask):
-        dbscan = DBSCAN()
-        labels = dbscan.fit_predict(segmentation_mask)
+        np.putmask(segmentation_mask, segmentation_mask == 2, 0)
+        labels = np.zeros(segmentation_mask.shape)
+        coord = np.nonzero(segmentation_mask == 1)
+        label_1d = DBSCAN.fit_predict(coord)
+        labels[coord] = label_1d
         return labels
