@@ -10,8 +10,6 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 from sklearn.cluster import DBSCAN
 from skimage import measure
-from skimage.segmentation import slic
-
 
 
 def get_img_coords(img, coords):
@@ -29,10 +27,10 @@ def get_img_coords(img, coords):
 
 
 class DocumentAnalyzer:
-    def __init__(self, scale=0.23, footprint_size=8):
+    def __init__(self, scale=0.23, footprint_size=8, model='../experiments/unet/14/model'):
         self.__scale = scale
-        self.__model = Model(24, depth=32, number_of_class=3)
-        self.__restore_path = '../model/'
+        self.__model = Model(8, depth=32, number_of_class=3,  unet_steps=4)
+        self.__restore_path = model
         self.__footprint_size = footprint_size
 
     def get_document_paragraphs(self, document_path):
@@ -40,13 +38,13 @@ class DocumentAnalyzer:
         img, origin_height, origin_width = self.load_img(document_path)
         probability_maps = self.get_probability_mask(img)
         segmentation_mask = self.get_segmentation_map(probability_maps)
-        plt.figure(dpi=300)
+        fig = plt.figure(dpi=300)
         plt.subplot(1, 4, 1)
         plt.imshow(or_img)
         plt.subplot(1, 4, 2)
         plt.imshow(segmentation_mask)
-        # clusters_labels = self.dbscan_clustering(segmentation_mask)
-        clusters_labels = self.clustering(segmentation_mask)
+        # clusters_labels = self.clustering(segmentation_mask)
+        clusters_labels = self.label_clustering(segmentation_mask)
         plt.subplot(1, 4, 3)
         plt.imshow(clusters_labels)
         coordinates = self.get_coordinates(clusters_labels, origin_width, origin_height)
@@ -54,7 +52,8 @@ class DocumentAnalyzer:
         plt.subplot(1, 4, 4)
         plt.imshow(img_rect)
         plt.show()
-        # plt.savefig('../results/{}_res.jpg'.format(document_path.split('\\')[-1]))
+        plt.savefig('../results/{}'.format(document_path.split('/')[-1]))
+        plt.close(fig)
         return coordinates, origin_width, origin_height
 
     def get_probability_mask(self, img):
@@ -75,21 +74,16 @@ class DocumentAnalyzer:
         return (x + y + z)[0]
 
     def clustering(self, segmentation_mask):
-        labels = measure.label(segmentation_mask, background=0)
-        return labels
-
-    def clustering(self, segmentation_mask):
-        # labels = measure.label(segmentation_mask, background=0)
-        labels = slic(segmentation_mask, n_segments=500, compactness=20)
-        return labels
-
-    def watershed_clustering(self, segmentation_mask):
-        boolean_map = segmentation_mask.astype(bool)
-        distance = ndi.distance_transform_edt(boolean_map)
-        local_maxi = peak_local_max(distance, indices=False, footprint=np.ones(
-            (self.__footprint_size, self.__footprint_size)), labels=boolean_map)
-        markers = ndi.label(local_maxi)[0]
-        labels = watershed(-distance, markers, mask=boolean_map)
+        np.putmask(segmentation_mask, segmentation_mask == 2, 0)
+        labels = np.zeros(segmentation_mask.shape, dtype="int32")
+        coord = np.nonzero(segmentation_mask == 1)
+        if len(coord[0]) > 0:
+            z = np.zeros((len(coord[0]), 2), dtype="int32")
+            z[:, 0] = coord[0]
+            z[:, 1] = coord[1]
+            dbscan = DBSCAN(eps=3, min_samples=25,algorithm='auto', leaf_size=30, metric='euclidean',)
+            label_1d = dbscan.fit_predict(z)
+            labels[coord] = label_1d + 1
         return labels
 
     def get_coordinates(self, cluster_labels, max_width, max_height):
@@ -129,9 +123,11 @@ class DocumentAnalyzer:
         self.__footprint_size = value
 
     def dbscan_clustering(self, segmentation_mask):
+        dbscan = DBSCAN()
+        labels = dbscan.fit_predict(segmentation_mask)
+        return labels
+
+    def label_clustering(self, segmentation_mask):
         np.putmask(segmentation_mask, segmentation_mask == 2, 0)
-        labels = np.zeros(segmentation_mask.shape)
-        coord = np.nonzero(segmentation_mask == 1)
-        label_1d = DBSCAN.fit_predict(coord)
-        labels[coord] = label_1d
+        labels = measure.label(segmentation_mask, background=0)
         return labels

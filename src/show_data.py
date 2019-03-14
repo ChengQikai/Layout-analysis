@@ -22,9 +22,9 @@ def get_img_coords(img, coords):
 
 
 def main():
-    img_path = 'F:\\splited_dataset\\test'
+    img_path = 'D:\\smaller_splited_dataset2\\train'
     orig_xml_path = 'F:\\impact_parsed'
-    xml_path = 'D:\\BP\\detect_test'
+    xml_path = 'D:\\merged_xml_test4'
     out = 'D:\\detected_without\\'
 
     files = os.listdir(img_path)
@@ -41,14 +41,15 @@ def main():
             coords, _, _ = get_coordinates_from_xml(xml_path + '\\' + xml_file)
             img_rect = get_img_coords(img, coords)
             plt.imshow(img_rect)
-            coords, _,_ = get_coordinates_from_xml(orig_xml_path + '\\' + xml_file)
-            img_rect = get_img_coords(img, coords)
-            plt.subplot(1, 2, 2)
-            accuracy = evaluate_symetric_best_dice(xml_path + '\\' + xml_file, orig_xml_path + '\\' + xml_file)
-            plt.title(accuracy)
-            plt.imshow(img_rect)
             plt.show()
-            plt.savefig('{}{}_{}'.format(out, accuracy, img_file))
+            # coords, _,_ = get_coordinates_from_xml(orig_xml_path + '\\' + xml_file)
+            # img_rect = get_img_coords(img, coords)
+            # plt.subplot(1, 2, 2)
+            # accuracy = evaluate_symetric_best_dice(xml_path + '\\' + xml_file, orig_xml_path + '\\' + xml_file)
+            # plt.title(accuracy)
+            # plt.imshow(img_rect)
+            # plt.show()
+            # plt.savefig('{}{}_{}'.format(out, accuracy, img_file))
             # plt.savefig('{}/{}'.format(out, img_file))
     return 0
 
