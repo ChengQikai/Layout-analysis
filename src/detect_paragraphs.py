@@ -7,10 +7,16 @@ import random
 import HelperMethods
 import argparse
 import os
+import numpy as np
+
+from PIL import Image, ImageDraw
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-m', '--model', help='Path to folder where are input images.',
+        default='', required=True)
     parser.add_argument(
         '-i', '--input-path', help='Path to folder where are input images.',
         default='', required=True)
@@ -47,11 +53,23 @@ def show_graph(input_path, coordinates, filename=''):
 
 import random
 
+def get_img_coords(img, coords):
+    res = img.copy()
+    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
+    for rect in coords:
+        rect.append(rect[0])
+        ImageDraw.Draw(label_img).line(rect, width=15, fill=1)
+    label_img = np.array(label_img)
+    for y in range(res.shape[0]):
+        for x in range(res.shape[1]):
+            if label_img[y][x] == 1:
+                res[y][x] = (0, 255, 0)
+    return res
 
 def main():
     args = parse_arguments()
     input_path = args.input_path
-    analyzer = DocumentAnalyzer()
+    analyzer = DocumentAnalyzer(model=args.model)
 
     if args.footprint_size:
         analyzer.set_footprint_size(int(args.footprint_size))
@@ -60,15 +78,27 @@ def main():
     images_names = [filename for filename in names if filename.endswith('.jpg')]
     random.shuffle(images_names)
 
+    output_list = os.listdir(args.output_path)
+    output_images_names = [filename for filename in output_list if filename.endswith('.jpg')]
+
     # os.makedirs(args.output_path)
 
     length = len(images_names)
     count = 0
     for img in images_names:
         filename = img.replace('.jpg', '')
+        if img in output_images_names:
+            continue
         coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img)
         xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
-        show_graph(input_path + img, coordinates, '{}/{}.jpg'.format(args.output_path, filename))
+        in_img = misc.imread(input_path + img, mode="RGB")
+        res = get_img_coords(in_img, coordinates)
+        fig = plt.figure(dpi=300)
+        plt.imshow(res)
+
+        plt.savefig('{}/{}.jpg'.format(args.output_path, filename))
+        plt.close(fig)
+        # show_graph(input_path + img, coordinates, '{}/{}.jpg'.format(args.output_path, filename))
         with open('{}/{}.xml'.format(args.output_path, filename), 'wb') as f:
             f.write(xml_string)
         count += 1

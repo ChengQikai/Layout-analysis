@@ -30,7 +30,10 @@ def best_dice(a, b):
     sum_a = 0
 
     if len(a) == 0:
-        return 0
+        if len(b) == 0:
+            return 1
+        else:
+            return 0
 
     for ai in a:
         max_value = 0
@@ -130,19 +133,15 @@ def evaluate_folder_accuracy(first_folder, second_folder):
 
     sum = 0
     count = 0
-    result = []
-
     for name in first_folder_names:
         if name in second_folder_names:
             accuracy = evaluate_symetric_best_dice('{}{}'.format(first_folder, name),
                                                    '{}/{}'.format(second_folder, name))
-            print(accuracy)
-            result.append((name, accuracy))
             sum += accuracy
             count += 1
 
     if count == 0:
         return 0
 
-    return sum / count, sorted(result, key=lambda x: x[1])
+    return sum / count
 

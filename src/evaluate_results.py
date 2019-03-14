@@ -1,21 +1,73 @@
 import sys
 import os
 from HelperMethods import evaluate_symetric_best_dice, get_coordinates_from_xml
+from scipy import misc
+from matplotlib import pyplot as plt
+from PIL import Image, ImageDraw
+import numpy as np
+
+
+def parse_argument():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-i', '--input-path', help='Path to input image', default='', required=False)
+    parser.add_argument(
+        '-r', '--original-path', help='Path to input image', default='', required=False)
+    parser.add_argument(
+        '-o', '--output', help='Path to output folder', default='.', required=True)
+    args = parser.parse_args()
+    return args
+
+def get_img_coords(img, coords):
+    res = img.copy()
+    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
+    for rect in coords:
+        rect.append(rect[0])
+        ImageDraw.Draw(label_img).line(rect, width=15, fill=1)
+    label_img = np.array(label_img)
+    for y in range(res.shape[0]):
+        for x in range(res.shape[1]):
+            if label_img[y][x] == 1:
+                res[y][x] = (0, 255, 0)
+    return res
+
 def main():
-    detected_path = '../dbscan/'
-    original_path = '../data/test/'
-    names = os.listdir(detected_path)
+    args = parse_argument()
+    detected_path = args.input_path
+    original_path = args.original_path
+    output_path = args.output
+
+    names = os.listdir(args.input_path)
     names = [filename for filename in names if filename.endswith('.xml')]
 
-
+    count = len(names)
+    actual = 0
+    accurracy_sum = 0
     for name in names:
-        first_coords = get_coordinates_from_xml(detected_path + name)
-        second_coords = get_coordinates_from_xml(original_path + name)
-        accurracy = evaluate_symetric_best_dice(first_coords, second_coords)
-        print(accurracy)
-
+        img_name = name.replace('.xml','.jpg')
+        img = misc.imread(original_path + img_name, mode="RGB")
+        fig = plt.figure(dpi=300)
+        plt.subplot(1, 2, 1)
+        or_coords, _, _ = get_coordinates_from_xml(original_path + name)
+        res = get_img_coords(img, or_coords)
+        plt.imshow(res)
+        plt.title(img_name)
+        accurracy = evaluate_symetric_best_dice(detected_path + name, original_path + name)
+        accurracy_sum += accurracy
+        print('{}:{}'.format(name, accurracy))
+        plt.subplot(1, 2, 2)
+        det_img = misc.imread(detected_path + img_name, mode="RGB")
+        plt.title('{}%'.format(accurracy * 100))
+        plt.imshow(det_img)
+        plt.savefig('{}/{}_{}'.format(output_path, accurracy, img_name))
+        plt.close(fig)
+        actual += 1
+        print('Complete {}/{}'.format(actual, count))
+    print('Complete Accuraccy: ', accurracy_sum/float(count))
+    with open('{}/acc.txt'.format(output_path),'w') as f:
+        f.write('Complete Accuraccy: {}'.format(accurracy_sum/float(count)))
     return 0
 
 
-if name == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
