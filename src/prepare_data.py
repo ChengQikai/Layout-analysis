@@ -49,7 +49,11 @@ def create_label(image, xml_path, scale, edge):
     img = Image.new("L", (img_size[1], img_size[0]), 0)
     weights_map = Image.new("L", (img_size[1], img_size[0]), 1)
 
+    region_count = 0
+    area = 0
+
     for region in root.iter('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}TextRegion'):
+        region_count += 1
         coordinates = region.find('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}Coords')
         points_string = coordinates.attrib['points'].split(' ')
         poly_points = []
@@ -64,19 +68,47 @@ def create_label(image, xml_path, scale, edge):
         min_coords = np.amin(poly_points, axis=0)
         max_coords = np.amax(poly_points, axis=0)
 
-        area = (max_coords[0] - min_coords[0]) * (max_coords[1] - min_coords[1])
+        area += (max_coords[0] - min_coords[0]) * (max_coords[1] - min_coords[1])
 
         poly = np.array(poly_points)
         poly = list(map(tuple, poly))
         ImageDraw.Draw(img).polygon(poly, fill=1)
 
-        ImageDraw.Draw(img).line([(min_coords[0], min_coords[1]),(min_coords[0], max_coords[1])], width=4, fill=2)
-        ImageDraw.Draw(img).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=4, fill=2)
-        # ImageDraw.Draw(img).line(line_points, width=4, fill=2)
-        # ImageDraw.Draw(weights_map).line(line_points, width=4, fill=5)
-        ImageDraw.Draw(weights_map).line([(min_coords[0], min_coords[1]), (min_coords[0], max_coords[1])], width=4, fill=2)
-        ImageDraw.Draw(weights_map).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=4, fill=2)
-    return np.array(img), np.array(weights_map), 0
+        # ImageDraw.Draw(img).line([(min_coords[0], min_coords[1]),(min_coords[0], max_coords[1])], width=3, fill=2)
+        # ImageDraw.Draw(img).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=3, fill=2)
+        # ImageDraw.Draw(img).line(line_points, width=3, fill=2)
+        ImageDraw.Draw(weights_map).line(line_points, width=4, fill=10)
+        # ImageDraw.Draw(weights_map).line([(min_coords[0], min_coords[1]), (min_coords[0], max_coords[1])], width=3, fill=10)
+        # ImageDraw.Draw(weights_map).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=3, fill=10)
+
+    for region in root.iter('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}TextRegion'):
+        # region_count += 1
+        coordinates = region.find('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}Coords')
+        points_string = coordinates.attrib['points'].split(' ')
+        poly_points = []
+
+        for point_string in points_string:
+            point = point_string.split(',')
+            poly_points.append((int(int(point[1])*scale), int(int(point[0])*scale)))
+
+        line_points = poly_points.copy()
+        line_points.append(line_points[0])
+
+        min_coords = np.amin(poly_points, axis=0)
+        max_coords = np.amax(poly_points, axis=0)
+
+        # ImageDraw.Draw(img).line([(min_coords[0], min_coords[1]),(min_coords[0], max_coords[1])], width=4, fill=2)
+        # ImageDraw.Draw(img).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=4, fill=2)
+        ImageDraw.Draw(img).line(line_points, width=4, fill=2)
+
+    score = 0
+
+    if region_count > 0 and area > (0.3 * (img_size[1] * img_size[0])):
+        score = area/region_count
+    # else:
+        # print(area,region_count,area/region_count, (0.35 * (img_size[1] * img_size[0])))
+
+    return np.array(img), np.array(weights_map), score
 
 
 def process_data(input_folder, img_name, xml_name, scale, edge):
@@ -93,7 +125,7 @@ def main():
     xml_files = [filename for filename in files if filename.endswith('.xml')]
     img_files = [filename for filename in files if filename.endswith('.jpg')]
     scale = float(args.scale)
-
+    scores = []
     actual = 0
     count = len(xml_files)
     for xml_name in xml_files:
@@ -104,9 +136,30 @@ def main():
             misc.imsave(args.output_folder + '/inputs/' + new_name, img)
             misc.imsave(args.output_folder + '/labels/' + new_name, label)
             misc.imsave(args.output_folder + '/weights_map/' + new_name, weigths_map)
+
+            if score != 0:
+                scores.append((new_name, score))
+
         actual += 1
-        print('{}/{}: {}'.format(actual,count,score))
-        
+        print('{}/{}: {} : {}'.format(actual,count, img_name, score))
+
+    scores = sorted(scores, key=lambda x: x[1])
+    score_sum = 0
+
+    new_scores = []
+    for score in scores:
+        new_score = 1/score[1]
+        score_sum += new_score
+        new_scores.append((score[0], new_score))
+
+    score_string = ''
+    for score in new_scores:
+        score_string += '{},{};'.format(score[0], score[1]/score_sum)
+
+    with open(args.output_folder + '/scores', 'w') as f:
+        f.write(score_string[:-1])
+
+
     print('Completed')
     return 0
 
