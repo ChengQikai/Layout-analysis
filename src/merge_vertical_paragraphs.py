@@ -7,7 +7,7 @@ import random
 
 
 
-y_treshold = 30
+y_treshold = 100
 
 def get_img_coords(img, coords):
     res = img.copy()
@@ -25,6 +25,12 @@ def get_img_coords(img, coords):
 def overlap(min1, max1, min2, max2):
     min_length = min(max1 - min1, max2 - min2)
     return (max(0, min(max1, max2) - max(min1, min2))) / min_length
+
+def is_almost_same_size(min1, max1, min2, max2):
+    first_len = max1 - min1
+    second_len = max2 - min2
+
+    return max(first_len, second_len)  * 0.6 < min(first_len, second_len)
 
 def merge_paragraphs(coordinates):
     new_coords = []
@@ -50,7 +56,9 @@ def merge_paragraphs(coordinates):
             r2min = np.amin(rect2, axis=0)
             r2max = np.amax(rect2, axis=0)
 
-            if (abs(r1min[1] - r2max[1]) < y_treshold or abs(r1max[1] - r2min[1]) < y_treshold) and overlap(r1min[0], r1max[0], r2min[0], r2max[0]) > 0.3:
+            if (abs(r1min[1] - r2max[1]) < y_treshold or abs(r1max[1] - r2min[1]) < y_treshold) and overlap(r1min[0], r1max[0], r2min[0], r2max[0]) > 0.7 \
+                    and is_almost_same_size(r1min[0], r1max[0], r2min[0], r2max[0]):
+                print('Merged')
                 coordinates[index2] = None
                 xs = min(r1min[0], r2min[0])
                 xe = max(r1max[0], r2max[0])
@@ -61,6 +69,7 @@ def merge_paragraphs(coordinates):
                 r1max = np.amax(rect1, axis=0)
                 index2 = 0
             elif overlap(r1min[0], r1max[0], r2min[0], r2max[0]) > 0.8 and overlap(r1min[1], r1max[1], r2min[1], r2max[1]) > 0.8:
+                print('Merged1')
                 coordinates[index2] = None
                 xs = min(r1min[0], r2min[0])
                 xe = max(r1max[0], r2max[0])
@@ -125,27 +134,29 @@ def get_img_coords(img, coords):
 
 
 def main():
-    path = 'D:\\smaller_splited_dataset2\\train'
-    out = 'D:\\merged_xml_train1'
+    out_path = 'D:\\smaller_splited_dataset2\\train'
+    # out = 'D:\\merged_xml_test5'
+    path = 'D:\\splited_xml\\train'
 
     files = os.listdir(path)
     xml_files = [filename for filename in files if filename.endswith('.xml')]
-    img_files = [filename for filename in files if filename.endswith('.jpg')]
-    out_files = os.listdir(out)
-    out_files = [filename for filename in out_files if filename.endswith('.xml')]
+    # img_files = [filename for filename in files if filename.endswith('.jpg')]
+    # out_files = os.listdir(out)
+    # out_files = [filename for filename in out_files if filename.endswith('.xml')]
 
-    random.shuffle(xml_files)
+    # random.shuffle(xml_files)
 
     for xml_file in xml_files:
-        if xml_file in out_files:
-            continue
-        img_file = xml_file.replace('.xml', '.jpg')
-        if img_file in img_files:
-            xml_coordinates, width, height = get_coordinates_from_xml(path + '\\' + xml_file)
-            xml_coordinates = merge_paragraphs(xml_coordinates)
-            merged_xml = create_page_xml(xml_coordinates, width, height, xml_file.replace('.xml', ''))
-            with open(out + '\\' + xml_file, 'wb') as f:
-                f.write(merged_xml)
+        # if xml_file in out_files:
+        #     continue
+        # img_file = xml_file.replace('.xml', '.jpg')
+
+        # if img_file in img_files:
+        xml_coordinates, width, height = get_coordinates_from_xml(path + '\\' + xml_file)
+        xml_coordinates = merge_paragraphs(xml_coordinates)
+        merged_xml = create_page_xml(xml_coordinates, width, height, xml_file.replace('.xml', ''))
+        with open(out_path + '\\' + xml_file, 'wb') as f:
+            f.write(merged_xml)
     return 0
 
 
