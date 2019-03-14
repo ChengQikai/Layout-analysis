@@ -4,7 +4,6 @@ from UnetModel import UnetModel as Model
 from scipy import misc
 import numpy as np
 import matplotlib.pyplot as plt
-import pickle
 from skimage.morphology import watershed
 from skimage.feature import peak_local_max
 from scipy import ndimage as ndi
@@ -65,7 +64,6 @@ def one_img(session, model, input_path, output_path):
 
     plt.subplot(1, 4, 4)
     label = Image.new("L", (img_cpy.shape[1], img_cpy.shape[0]), 0)
-    line_points = []
     for key in bboxSlices.keys():
         for rec in bboxSlices[key]:
             line_points = []

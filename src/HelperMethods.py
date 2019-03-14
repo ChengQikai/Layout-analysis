@@ -5,6 +5,34 @@ import lxml.etree as ET
 from PIL import Image, ImageDraw
 import os
 
+
+def get_img_coords(img, coords):
+    res = img.copy()
+    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
+    for rect in coords:
+        rect.append(rect[0])
+        ImageDraw.Draw(label_img).line(rect, width=4, fill=1)
+    label_img = np.array(label_img)
+    for y in range(res.shape[0]):
+        for x in range(res.shape[1]):
+            if label_img[y][x] == 1:
+                res[y][x] = (0, 255, 0)
+    return res
+
+
+def get_line_coords(path):
+    root = ET.parse(path).getroot()
+    baselines = []
+    for baseline in root.iter('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}Baseline'):
+        baseline_coord = list()
+        coords_string = baseline.get('points').split(' ')
+        for point_string in coords_string:
+            point = point_string.split(',')
+            baseline_coord.append((int(point[1]), int(point[0])))
+        baselines.append(baseline_coord)
+    return baselines
+
+
 def pixel_accuracy(output, label):
     correct = np.sum(np.equal(output, label))
     total = output.shape[0] * output.shape[1] * output.shape[2]

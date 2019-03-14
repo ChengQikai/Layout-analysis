@@ -1,89 +1,11 @@
 import sys
 from scipy import misc
 import matplotlib.pyplot as plt
-import lxml.etree as ET
-import math
-from scipy import ndimage
-import numpy as np
 from DocumentAnalyzer import DocumentAnalyzer
 import os
-from PIL import Image, ImageDraw
+from SeparatorHelperMethods import rotate_data, get_separator_img, find_separators
+from HelperMethods import get_line_coords, get_img_coords
 
-
-def get_img_coords(img, coords):
-    res = img.copy()
-    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
-    for rect in coords:
-        rect.append(rect[0])
-        ImageDraw.Draw(label_img).line(rect, width=4, fill=1)
-    label_img = np.array(label_img)
-    for y in range(res.shape[0]):
-        for x in range(res.shape[1]):
-            if label_img[y][x] == 1:
-                res[y][x] = (0, 255, 0)
-    return res
-
-def rotate_data(img_data, lines):
-    lines_info = []
-    for line in lines:
-        first_line_point = line[0]
-        last_line_point = line[-1]
-        if last_line_point[0] != first_line_point[0]:
-            rotation = math.degrees(math.atan((last_line_point[0] - first_line_point[0]) / (last_line_point[1] - first_line_point[1])))
-            length = math.sqrt(math.pow(last_line_point[1] - first_line_point[1],2) + math.pow(last_line_point[0]-first_line_point[0],2))
-            lines_info.append((length,rotation))
-        else:
-            lines_info.append((0,0))
-    lines_info = sorted(lines_info,key = lambda x: x[0],reverse = True)
-    lines_info = lines_info[0:int(len(lines_info)/2)]
-    rotation_sum = sum(item[1] for item in lines_info)
-    rotation = 0
-    if len(lines_info) > 0:
-        rotation = rotation_sum/len(lines_info)
-    rotated_data = ndimage.interpolation.rotate(img_data, rotation, reshape=False)
-    return rotated_data, -rotation
-
-
-def get_line_coords(path):
-    root = ET.parse(path).getroot()
-    baselines = []
-    for baseline in root.iter('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}Baseline'):
-        baseline_coord = list()
-        coords_string = baseline.get('points').split(' ')
-        for point_string in coords_string:
-            point = point_string.split(',')
-            baseline_coord.append((int(point[1]), int(point[0])))
-        baselines.append(baseline_coord)
-    return baselines
-
-def get_1d(data):
-    return np.sum(data, axis=0)
-
-def nonmaxima_suppression(input):
-    dilated = ndimage.morphology.grey_dilation(input, size=(2))
-    return(input * (input==dilated))
-
-def get_separator_img(img, separators, value):
-
-    for separator in separators:
-        img[:, separator] = value
-
-    return img
-
-def find_separators(img):
-    paragraph_img = img.copy()
-    line_img = img.copy()
-
-    np.putmask(paragraph_img, paragraph_img == 2, 0)
-    np.putmask(line_img, line_img == 1, 0)
-
-    paragraph1d = get_1d(paragraph_img)
-    line1d = get_1d(line_img)
-
-    isSeparator1D = (line1d > paragraph1d) * line1d
-    nonmaxima_separator = nonmaxima_suppression(isSeparator1D)
-    # nonmaxima_separator = isSeparator1D
-    return np.nonzero(nonmaxima_separator)[0]
 
 def main():
     analyzer = DocumentAnalyzer(scale=1)
@@ -148,7 +70,6 @@ def main():
             plt.savefig('{}/{}'.format(output, input_name))
             plt.close(fig)
             print('Complete one')
-
 
     print("Complete all")
     return 0
