@@ -8,3 +8,5 @@ dbscan/*
 results/*
 model/*
 file.pickle
+test/*
+scripts/*
