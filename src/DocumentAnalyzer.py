@@ -1,59 +1,41 @@
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 from UnetModel import UnetModel as Model
 from scipy import misc
 import tensorflow as tf
 import numpy as np
-from scipy import ndimage as ndi
-from skimage.feature import peak_local_max
-from skimage.morphology import watershed
 import scipy.ndimage.measurements as mnts
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 from sklearn.cluster import DBSCAN
 from skimage import measure
-
-
-def get_img_coords(img, coords):
-    res = img.copy()
-    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
-    for rect in coords:
-        rect.append(rect[0])
-        ImageDraw.Draw(label_img).line(rect, width=15, fill=1)
-    label_img = np.array(label_img)
-    for y in range(res.shape[0]):
-        for x in range(res.shape[1]):
-            if label_img[y][x] == 1:
-                res[y][x] = (0, 255, 0)
-    return res
+from Postprocessing import paragraphs_postprocessing
 
 
 class DocumentAnalyzer:
-    def __init__(self, scale=0.23, footprint_size=8, model='../experiments/unet/14/model'):
+    def __init__(self, scale=0.23, footprint_size=8, model='../experiments/normal/model'):
         self.__scale = scale
         self.__model = Model(8, depth=32, number_of_class=3,  unet_steps=4)
         self.__restore_path = model
         self.__footprint_size = footprint_size
 
-    def get_document_paragraphs(self, document_path):
-        or_img = misc.imread(document_path, mode="RGB")
+    def get_document_paragraphs(self, document_path, line_coords=None, plot_progress=False):
         img, origin_height, origin_width = self.load_img(document_path)
         probability_maps = self.get_probability_mask(img)
         segmentation_mask = self.get_segmentation_map(probability_maps)
-        fig = plt.figure(dpi=300)
-        plt.subplot(1, 4, 1)
-        plt.imshow(or_img)
-        plt.subplot(1, 4, 2)
-        plt.imshow(segmentation_mask)
-        # clusters_labels = self.clustering(segmentation_mask)
         clusters_labels = self.label_clustering(segmentation_mask)
-        plt.subplot(1, 4, 3)
-        plt.imshow(clusters_labels)
         coordinates = self.get_coordinates(clusters_labels, origin_width, origin_height)
-        img_rect = get_img_coords(or_img, coordinates)
-        plt.subplot(1, 4, 4)
-        plt.imshow(img_rect)
-        plt.show()
-        plt.savefig('../results/{}'.format(document_path.split('/')[-1]))
-        plt.close(fig)
+        coordinates = paragraphs_postprocessing(coordinates)
+
         return coordinates, origin_width, origin_height
 
     def get_probability_mask(self, img):
@@ -73,10 +55,12 @@ class DocumentAnalyzer:
         z = np.array(probabilities[:, :, :, 2] == output_max, dtype="int") * 2
         return (x + y + z)[0]
 
-    def clustering(self, segmentation_mask):
+    @staticmethod
+    def clustering(segmentation_mask):
         np.putmask(segmentation_mask, segmentation_mask == 2, 0)
         labels = np.zeros(segmentation_mask.shape, dtype="int32")
         coord = np.nonzero(segmentation_mask == 1)
+
         if len(coord[0]) > 0:
             z = np.zeros((len(coord[0]), 2), dtype="int32")
             z[:, 0] = coord[0]
@@ -84,6 +68,7 @@ class DocumentAnalyzer:
             dbscan = DBSCAN(eps=3, min_samples=25,algorithm='auto', leaf_size=30, metric='euclidean',)
             label_1d = dbscan.fit_predict(z)
             labels[coord] = label_1d + 1
+
         return labels
 
     def get_coordinates(self, cluster_labels, max_width, max_height):
@@ -111,6 +96,7 @@ class DocumentAnalyzer:
                 rectangle_coordinates.append((min(int(height_slice.stop * ratio), max_height-1),
                                               int(width_slice.start * ratio)))
                 coordinates.append(rectangle_coordinates)
+
         return coordinates
 
     def load_img(self, document_path):
@@ -119,15 +105,8 @@ class DocumentAnalyzer:
         img = misc.imresize(img, self.__scale)
         return img, height, width
 
-    def set_footprint_size(self, value):
-        self.__footprint_size = value
-
-    def dbscan_clustering(self, segmentation_mask):
-        dbscan = DBSCAN()
-        labels = dbscan.fit_predict(segmentation_mask)
-        return labels
-
-    def label_clustering(self, segmentation_mask):
+    @staticmethod
+    def label_clustering(segmentation_mask):
         np.putmask(segmentation_mask, segmentation_mask == 2, 0)
         labels = measure.label(segmentation_mask, background=0)
         return labels

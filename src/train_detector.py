@@ -1,3 +1,14 @@
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 
 import sys
 import os
@@ -16,15 +27,15 @@ def parse_argument():
     parser.add_argument(
         '-m', '--model', help='Path to Model to load', default='', required=False)
     parser.add_argument(
-        '-i', '--input-path', help='Path to input image', default='./data/smaller', required=False)
+        '-i', '--input-path', help='Path to input image', default='../data/training', required=False)
     parser.add_argument(
-        '-b', '--batch-size', help='Batch size', default=24, required=False)
+        '-b', '--batch-size', help='Batch size', default=8, required=False)
     parser.add_argument(
         '-is', '--image-size', help='Image size', default=300, required=False)
     parser.add_argument(
-        '-s', '--steps', help='Number of steps', default=10000, required=False)
+        '-s', '--steps', help='Number of steps', default=20000, required=False)
     parser.add_argument(
-        '-o', '--output', help='Path to output folder', default='.', required=True)
+        '-o', '--output', help='Path to output folder', default='./training_output', required=False)
     parser.add_argument(
         '-a', '--batch-sample', default='', required=False)
     args = parser.parse_args()
@@ -51,14 +62,11 @@ class TrainModel:
         self.output = output
         self.batch_sample = batch_sample
 
-        plt.figure(dpi=300)
-
     def load_part_data(self, images_path, labels_path, weights_path, images_names, labels_names, weights_names):
         images_list = []
         labels_list = []
         weights_list = []
         names_list = []
-
 
         for img_name in images_names:
             if img_name in labels_names and img_name in weights_names:
@@ -78,21 +86,21 @@ class TrainModel:
         self.test_images_list = []
         self.test_labels_list = []
 
-        train_images_path = path + '/train/inputs'
-        train_labels_path = path + '/train/labels'
-        train_weights_path = path + '/train/weights_map'
+        self.train_images_path = path + '/train/inputs'
+        self.train_labels_path = path + '/train/labels'
+        self.train_weights_path = path + '/train/weights_map'
 
-        test_images_path = path + '/test/inputs'
-        test_labels_path = path + '/test/labels'
-        test_weights_path = path + '/test/weights_map'
+        self.test_images_path = path + '/test/inputs'
+        self.test_labels_path = path + '/test/labels'
+        self.test_weights_path = path + '/test/weights_map'
 
-        names = os.listdir(train_images_path)
-        labels_names = os.listdir(train_labels_path)
-        weights_names = os.listdir(train_weights_path)
+        names = os.listdir(self.train_images_path)
+        labels_names = os.listdir(self.train_labels_path)
+        weights_names = os.listdir(self.train_weights_path)
 
-        test_names = os.listdir(test_images_path)
-        test_label_names = os.listdir(test_labels_path)
-        test_weights_names = os.listdir(test_weights_path)
+        test_names = os.listdir(self.test_images_path)
+        test_label_names = os.listdir(self.test_labels_path)
+        test_weights_names = os.listdir(self.test_weights_path)
 
         with open('{}/train/scores'.format(path)) as f:
             prob_string = f.readline()
@@ -108,43 +116,62 @@ class TrainModel:
 
             self.train_probabilities[0] = 1 - (prob_sum - self.train_probabilities[0])
 
-        self.images_list, self.labels_list, self.weights_list, self.names_list = self.load_part_data(
-            train_images_path, train_labels_path, train_weights_path, names, labels_names, weights_names)
+        self.train_names = []
+        for name in names:
+            if name in labels_names and name in weights_names:
+                self.train_names.append(name)
 
-        #self.test_images_list, self.test_labels_list, self.test_weights_list, self.test_names_list = self.load_part_data(
-            #test_images_path, test_labels_path, test_weights_path, test_names, test_label_names, test_weights_names)
+        self.test_names = []
+        for test_name in test_names:
+            if test_name in test_label_names and test_name in test_weights_names:
+                self.test_names.append(test_name)
 
     def get_batch(self, size=None, is_test=False):
-        batch_data = np.zeros([self.batch_size, self.img_size, self.img_size, 3])
+        batch_data = np.full([self.batch_size, self.img_size, self.img_size, 3], 0.5)
         batch_labels = np.zeros([self.batch_size, self.img_size, self.img_size])
-        batch_weights = np.zeros([self.batch_size, self.img_size, self.img_size])
+        batch_weights = np.ones([self.batch_size, self.img_size, self.img_size])
 
         if size is None:
             size = self.batch_size
 
-        for i in range(size):
-            # if is_test:
-            #     img_index = np.random.randint(0, len(self.test_images_list) - 1)
-            #     img = self.test_images_list[img_index]
-            #     label = self.test_labels_list[img_index]
-            #     weights_map = self.test_weights_list[img_index]
-            # else:
-            if self.batch_sample == True and i < size // 2:
+        actual_size = 0
+        while actual_size < size:
+            if self.batch_sample == True and actual_size < size // 2:
                 img_name = ''
-                while not img_name in self.names_list:
+                while  img_name not in self.train_names:
                     img_name = np.random.choice(self.train_probabilities_name, p=self.train_probabilities)
-                img_index = self.names_list.index(img_name)
+                img_index = self.train_names.index(img_name)
             else:
-                img_index = np.random.randint(0, len(self.images_list) - 1)
-            img = self.images_list[img_index]
-            label = self.labels_list[img_index]
-            weights_map = self.weights_list[img_index]
+                img_index = np.random.randint(0, len(self.train_names) - 1)
 
-            x = np.random.randint(0, img.shape[1] - self.img_size)
-            y = np.random.randint(0, img.shape[0] - self.img_size)
-            batch_data[i] = img[y:y + self.img_size, x:x + self.img_size]
-            batch_labels[i] = label[y:y + self.img_size, x:x + self.img_size]
-            batch_weights[i] = weights_map[y:y + self.img_size, x:x + self.img_size]
+            name = self.train_names[img_index]
+            img = misc.imread(self.train_images_path + '/' + name, mode='RGB')
+            try:
+                img = np.array(img) / 255.0 - 0.5
+
+                y_size = self.img_size
+                if img.shape[0] <= self.img_size:
+                    y_size = img.shape[0]
+                    y = 0
+                else:
+                    y = np.random.randint(0, img.shape[0] - y_size)
+
+                x_size = self.img_size
+                if img.shape[1] <= self.img_size:
+                    x_size = img.shape[1]
+                    x = 0
+                else:
+                    x = np.random.randint(0, img.shape[1] - x_size)
+
+                label = misc.imread(self.train_labels_path + '/' + name, mode='L')
+                weights_map = misc.imread(self.train_weights_path + '/' + name, mode='L')
+
+                batch_data[actual_size][0: y_size, 0:x_size] = img[y:y + y_size, x:x + x_size]
+                batch_labels[actual_size][0: y_size, 0:x_size] = label[y:y + y_size, x:x + x_size]
+                batch_weights[actual_size][0: y_size, 0:x_size] = weights_map[y:y + y_size, x:x + x_size]
+                actual_size += 1
+            except:
+                print('Misc mother fucker')
         return batch_data, batch_labels, batch_weights
 
     def train(self):
@@ -155,11 +182,9 @@ class TrainModel:
         with tf.Session(graph=self.model.graph) as session:
             tf.global_variables_initializer().run()
 
-            print('Path', self.model_path)
-            # if self.model_path != '' and self.model_path is not None:
-            #     print(self.model_path)
-            #     self.model.saver.restore(session, tf.train.latest_checkpoint(self.model_path))
-            #     print('ReStored')
+            if self.model_path != '' and self.model_path is not None:
+                print(self.model_path)
+                self.model.saver.restore(session, tf.train.latest_checkpoint(self.model_path))
 
             self.model.saver.save(session, self.output + '/model/model')
 
@@ -177,7 +202,7 @@ class TrainModel:
 
                     batch_data, batch_labels, batch_weights = self.get_batch(size=validation_size, is_test=False)
                     feed_dict = {self.model.tf_train_dataset: batch_data, self.model.tf_train_labels: batch_labels,
-                                 self.model.tf_train_mode: False, self.model.tf_train_weights: batch_weights}
+                                 self.model.tf_train_mode: True, self.model.tf_train_weights: batch_weights}
 
                     output = session.run([self.model.output_map], feed_dict=feed_dict)
                     output = output[0]
@@ -188,8 +213,6 @@ class TrainModel:
 
                     print("Step {}: Loss {} \nTrain Accuracy {}%".format(step, loss, accuracy * 100))
                     HelperMethods.save_loss_graph(step, loss_list, self.output)
-
-                    os.makedirs('{}/overview/train/{}'.format(self.output, step))
 
                     output_seg = np.stack((output_seg,) * 3, axis=-1)
                     np.putmask(output_seg, output_seg == (1, 1, 1), (255, 0, 0))
@@ -211,44 +234,9 @@ class TrainModel:
                         ax = plt.subplot(1, 3, 3)
                         ax.set_title("Output")
                         plt.imshow(output_seg[i])
-                        plt.savefig('{}/overview/train/{}/{}'.format(self.output, step, i))
-
-                    # batch_data, batch_labels = self.get_batch(size=validation_size, is_test=True)
-                    # feed_dict = {self.model.tf_train_dataset: batch_data, self.model.tf_train_labels: batch_labels,
-                    #              self.model.tf_train_mode: False}
-                    # output = session.run([self.model.output_map], feed_dict=feed_dict)
-                    # output = output[0]
-                    # output_seg = HelperMethods.get_segmentation_map(output)
-                    # accuracy = HelperMethods.pixel_accuracy(output_seg, batch_labels)
-                    # accuracy_list_test.append(accuracy)
-                    # print("Test: Accuracy {}%".format(accuracy * 100))
-                    # plt.clf()
-                    # plt.plot(accuracy_list, color="r", label="train")
-                    # plt.plot(accuracy_list_test, color="b", label="test")
-                    # plt.savefig('{}/accuracy/{}.jpg'.format(self.output, step))
-                    #
-                    # os.makedirs('{}/overview/test/{}'.format(self.output, step))
-                    # output_seg = np.stack((output_seg,) * 3, axis=-1)
-                    # np.putmask(output_seg, output_seg == (1, 1, 1), (255, 0, 0))
-                    # np.putmask(output_seg, output_seg == (2, 2, 2), (0, 255, 0))
-                    #
-                    # for i in range(validation_size):
-                    #     plt.clf()
-                    #     ax = plt.subplot(1, 3, 1)
-                    #     ax.set_title("Input")
-                    #     plt.imshow(batch_data[i] + 0.5)
-                    #     ax = plt.subplot(1, 3, 2)
-                    #     ax.set_title("Label")
-                    #     label = batch_labels[i]
-                    #     label = np.array(label, dtype="int")
-                    #     label = np.stack((label,) * 3, axis=-1)
-                    #     np.putmask(label, label == (1, 1, 1), (255, 0, 0))
-                    #     np.putmask(label, label == (2, 2, 2), (0, 255, 0))
-                    #     plt.imshow(label)
-                    #     ax = plt.subplot(1, 3, 3)
-                    #     ax.set_title("Output")
-                    #     plt.imshow(output_seg[i])
-                    #     plt.savefig('{}/overview/test/{}/{}'.format(self.output, step, i))
+                        if not os.path.exists('{}/overview/{}'.format(self.output, step)):
+                            os.makedirs('{}/overview/{}'.format(self.output, step))
+                        plt.savefig('{}/overview/{}/{}'.format(self.output, step, i))
 
                     self.model.saver.save(session, self.output + '/model/model', global_step=step,
                                           write_meta_graph=False)
@@ -256,7 +244,7 @@ class TrainModel:
 
 def prepare_folder(path):
     if not os.path.exists(path):
-        os.mkdir(path)
+        os.makedirs(path)
     else:
         top = path + '/'
         for root, dirs, files in os.walk(top, topdown=False):
@@ -272,8 +260,8 @@ def main():
                          args.output, args.batch_sample == 'True')
     trainer.load_data(args.input_path)
     prepare_folder(args.output + '/loss')
-    prepare_folder(args.output + '/accuracy')
     prepare_folder(args.output + '/overview')
+    prepare_folder(args.output + '/model')
     trainer.train()
     return 0
 

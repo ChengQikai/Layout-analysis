@@ -1,7 +1,21 @@
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 import math
 from scipy import ndimage
 import numpy as np
-
+import cv2
+from skimage.draw import line
+import random
 
 def rotate_data(img_data, lines):
     lines_info = []
@@ -34,7 +48,7 @@ def get_1d(data):
 
 
 def nonmaxima_suppression(input):
-    dilated = ndimage.morphology.grey_dilation(input, size=(2))
+    dilated = ndimage.morphology.grey_dilation(input, size=2)
     return input * (input == dilated)
 
 
@@ -58,3 +72,28 @@ def find_separators(img):
     is_separator_1d = (line1d > paragraph1d) * line1d
     is_separator_1d = nonmaxima_suppression(is_separator_1d)
     return np.nonzero(is_separator_1d)[0]
+
+
+def rotate_line(line, rotation, height = 0):
+    M = cv2.getRotationMatrix2D((0,0),rotation,1)
+    baseline = np.array([line])
+    rotated_line = cv2.transform(baseline,M)[0]
+    return rotated_line
+
+
+def fit_separators_into_segmentation_mask(segmentation_mask, line_coords):
+    height, width = segmentation_mask.shape
+    rotated_mask, rotation = rotate_data(segmentation_mask, line_coords)
+
+    separators = find_separators(rotated_mask)
+    lines = np.zeros((height, width))
+
+    for separator in separators:
+        rotated_line = rotate_line([(separator, 0), (separator, height)], rotation)
+        rr, cc = line(rotated_line[0][1],rotated_line[0][0], rotated_line[1][1], rotated_line[1][0])
+        rr = np.clip(rr, 0, height-1)
+        cc = np.clip(cc, 0, width-1)
+        lines[rr, cc] = 1
+        segmentation_mask[rr, cc] = 2
+
+    return segmentation_mask

@@ -1,3 +1,15 @@
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 import sys
 import os
 from HelperMethods import evaluate_symetric_best_dice, get_coordinates_from_xml
@@ -5,16 +17,17 @@ from scipy import misc
 from matplotlib import pyplot as plt
 from PIL import Image, ImageDraw
 import numpy as np
+import argparse
 
 
 def parse_argument():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-i', '--input-path', help='Path to input image', default='', required=False)
+        '-i', '--input-path', help='Path to analyzed xml files', default='', required=True)
     parser.add_argument(
-        '-r', '--original-path', help='Path to input image', default='', required=False)
+        '-r', '--original-path', help='Path to original xml files', default='', required=True)
     parser.add_argument(
-        '-o', '--output', help='Path to output folder', default='.', required=True)
+        '-o', '--output', help='Path to output folder', default='./evaluate_outputh', required=False)
     args = parser.parse_args()
     return args
 
@@ -36,6 +49,9 @@ def main():
     detected_path = args.input_path
     original_path = args.original_path
     output_path = args.output
+
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
 
     names = os.listdir(args.input_path)
     names = [filename for filename in names if filename.endswith('.xml')]

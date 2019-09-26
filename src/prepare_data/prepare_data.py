@@ -1,22 +1,36 @@
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 import argparse
 import sys
 import os
 import shutil
 from scipy import misc
 import numpy as np
-import xml.etree.ElementTree as ET
+import lxml.etree as ET
 from PIL import Image, ImageDraw
+
+baseline_medians = dict()
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-i', '--input-folder', help='Path to input folder.', default='D:\BP\output\\', required=False)
+        '-i', '--input-folder', help='Path to input folder.', default='..\\data\\test\\', required=True)
     parser.add_argument(
-        '-p', '--output-folder', help='Path to output folder.', default='D:\BP\data\\', required=False)
+        '-p', '--output-folder', help='Path to output folder.', default='.\\output\\', required=True)
     parser.add_argument(
         '-s', '--scale', help='How to scale data.', default=1.0, required=False)
     parser.add_argument(
-        '-e', '--edge', help='Options "vertical" or "full".', default='', required=False)
+        '-e', '--edge', help='Options "vertical" otherwise "full".', default='', required=False);
     args = parser.parse_args()
     return args
 
@@ -34,7 +48,8 @@ def clear_folder(folder):
 
 
 def prepare_output_folder(path):
-    clear_folder(path)
+    if os.path.exists(path):
+        clear_folder(path)
     if not os.path.exists(path + '/inputs'):
         os.makedirs(path + '/inputs')
     if not os.path.exists(path + '/labels'):
@@ -51,6 +66,8 @@ def create_label(image, xml_path, scale, edge):
 
     region_count = 0
     area = 0
+
+    edge_vertical = edge == 'vertical'
 
     for region in root.iter('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}TextRegion'):
         region_count += 1
@@ -74,15 +91,14 @@ def create_label(image, xml_path, scale, edge):
         poly = list(map(tuple, poly))
         ImageDraw.Draw(img).polygon(poly, fill=1)
 
-        # ImageDraw.Draw(img).line([(min_coords[0], min_coords[1]),(min_coords[0], max_coords[1])], width=3, fill=2)
-        # ImageDraw.Draw(img).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=3, fill=2)
-        # ImageDraw.Draw(img).line(line_points, width=3, fill=2)
-        ImageDraw.Draw(weights_map).line(line_points, width=4, fill=10)
-        # ImageDraw.Draw(weights_map).line([(min_coords[0], min_coords[1]), (min_coords[0], max_coords[1])], width=3, fill=10)
-        # ImageDraw.Draw(weights_map).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=3, fill=10)
+        
+        if edge_vertical:
+            ImageDraw.Draw(weights_map).line([(min_coords[0], min_coords[1]), (min_coords[0], max_coords[1])], width=3, fill=10)
+            ImageDraw.Draw(weights_map).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=3, fill=10)
+        else:
+            ImageDraw.Draw(weights_map).line(line_points, width=4, fill=10)
 
     for region in root.iter('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}TextRegion'):
-        # region_count += 1
         coordinates = region.find('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}Coords')
         points_string = coordinates.attrib['points'].split(' ')
         poly_points = []
@@ -97,16 +113,16 @@ def create_label(image, xml_path, scale, edge):
         min_coords = np.amin(poly_points, axis=0)
         max_coords = np.amax(poly_points, axis=0)
 
-        # ImageDraw.Draw(img).line([(min_coords[0], min_coords[1]),(min_coords[0], max_coords[1])], width=4, fill=2)
-        # ImageDraw.Draw(img).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=4, fill=2)
-        ImageDraw.Draw(img).line(line_points, width=4, fill=2)
+        if edge_vertical:
+            ImageDraw.Draw(img).line([(min_coords[0], min_coords[1]),(min_coords[0], max_coords[1])], width=4, fill=2)
+            ImageDraw.Draw(img).line([(max_coords[0], min_coords[1]), (max_coords[0], max_coords[1])], width=4, fill=2)
+        else:
+            ImageDraw.Draw(img).line(line_points, width=4, fill=2)
 
     score = 0
 
     if region_count > 0 and area > (0.3 * (img_size[1] * img_size[0])):
         score = area/region_count
-    # else:
-        # print(area,region_count,area/region_count, (0.35 * (img_size[1] * img_size[0])))
 
     return np.array(img), np.array(weights_map), score
 
@@ -121,6 +137,7 @@ def process_data(input_folder, img_name, xml_name, scale, edge):
 def main():
     args = parse_arguments()
     prepare_output_folder(args.output_folder)
+
     files = os.listdir(args.input_folder)
     xml_files = [filename for filename in files if filename.endswith('.xml')]
     img_files = [filename for filename in files if filename.endswith('.jpg')]
@@ -140,8 +157,9 @@ def main():
             if score != 0:
                 scores.append((new_name, score))
 
+            print('{}/{}: {} : {}'.format(actual,count, img_name, score))
+
         actual += 1
-        print('{}/{}: {} : {}'.format(actual,count, img_name, score))
 
     scores = sorted(scores, key=lambda x: x[1])
     score_sum = 0
