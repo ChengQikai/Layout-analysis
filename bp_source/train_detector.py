@@ -234,6 +234,8 @@ class TrainModel:
                         ax = plt.subplot(1, 3, 3)
                         ax.set_title("Output")
                         plt.imshow(output_seg[i])
+                        if not os.path.exists('{}/overview/{}'.format(self.output, step)):
+                            os.makedirs('{}/overview/{}'.format(self.output, step))
                         plt.savefig('{}/overview/{}/{}'.format(self.output, step, i))
 
                     self.model.saver.save(session, self.output + '/model/model', global_step=step,
