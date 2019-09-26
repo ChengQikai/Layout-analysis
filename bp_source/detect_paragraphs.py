@@ -37,21 +37,7 @@ def parse_arguments():
         default='./detect_output', required=False)
 
     args = parser.parse_args()
-    return args
-
-
-def get_img_coords(img, coords):
-    res = img.copy()
-    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
-    for rect in coords:
-        rect.append(rect[0])
-        ImageDraw.Draw(label_img).line(rect, width=15, fill=1)
-    label_img = np.array(label_img)
-    for y in range(res.shape[0]):
-        for x in range(res.shape[1]):
-            if label_img[y][x] == 1:
-                res[y][x] = (0, 255, 0)
-    return res
+    return args 
 
     
 def get_baseline_median(xml_path):
@@ -88,8 +74,8 @@ def main():
     length = len(images_names)
     count = 0
     for img in images_names:
-        filename = img.replace('.jpg', '')
-        xml_name = img.replace('.jpg', '.xml')
+        filename = img.replace('.jpeg', '')
+        xml_name = img.replace('.jpeg', '.xml')
         
         if xml_name in xml_names:
             baseline_median = get_baseline_median(input_path + xml_name)
@@ -106,14 +92,6 @@ def main():
         coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img)
         xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
 
-        in_img = misc.imread(input_path + img, mode="RGB")
-        res = get_img_coords(in_img, coordinates)
-        fig = plt.figure()
-        f, axarr = plt.subplots(1, 1, dpi=1000)
-        axarr.axis('off')
-        axarr.imshow(res)
-        plt.savefig('{}/{}.jpg'.format(args.output_path, filename), bbox_inches='tight')
-        plt.close(fig)
 
         with open('{}/{}.xml'.format(args.output_path, os.path.splitext(filename)[0]), 'wb') as f:
             f.write(xml_string)
