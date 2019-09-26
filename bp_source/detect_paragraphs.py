@@ -22,6 +22,7 @@ import argparse
 import os
 import numpy as np
 from PIL import Image, ImageDraw
+import matplotlib.pyplot as plt
 
 
 def parse_arguments():
@@ -37,7 +38,21 @@ def parse_arguments():
         default='./detect_output', required=False)
 
     args = parser.parse_args()
-    return args 
+    return args
+
+
+def get_img_coords(img, coords):
+    res = img.copy()
+    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
+    for rect in coords:
+        rect.append(rect[0])
+        ImageDraw.Draw(label_img).line(rect, width=15, fill=1)
+    label_img = np.array(label_img)
+    for y in range(res.shape[0]):
+        for x in range(res.shape[1]):
+            if label_img[y][x] == 1:
+                res[y][x] = (0, 255, 0)
+    return res
 
     
 def get_baseline_median(xml_path):
@@ -89,9 +104,23 @@ def main():
 
         analyzer.__scale = median_scale
 
-        coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img)
+        f, axarr = plt.subplots(2, 3, dpi=1000)
+        in_img = misc.imread(input_path + img, mode="RGB")
+        coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img, axarr, in_img)
         xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
 
+        res = get_img_coords(in_img, coordinates)
+
+        axarr[1][2].axis('off')
+        axarr[1][2].imshow(res)
+        f.show()
+        f.savefig('{}/{}_progress.jpg'.format(args.output_path, filename), bbox_inches='tight')
+        fig = plt.figure()
+        f, axarr = plt.subplots(1, 1, dpi=1000)
+        axarr.axis('off')
+        axarr.imshow(res)
+        plt.savefig('{}/{}.jpg'.format(args.output_path, filename), bbox_inches='tight')
+        plt.close(fig)
 
         with open('{}/{}.xml'.format(args.output_path, os.path.splitext(filename)[0]), 'wb') as f:
             f.write(xml_string)

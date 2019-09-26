@@ -20,6 +20,19 @@ from sklearn.cluster import DBSCAN
 from skimage import measure
 from Postprocessing import paragraphs_postprocessing
 
+def get_img_coords(img, coords):
+    res = img.copy()
+    label_img = Image.new("L", (img.shape[1], img.shape[0]), 0)
+    for rect in coords:
+        rect.append(rect[0])
+        ImageDraw.Draw(label_img).line(rect, width=15, fill=1)
+    label_img = np.array(label_img)
+    for y in range(res.shape[0]):
+        for x in range(res.shape[1]):
+            if label_img[y][x] == 1:
+                res[y][x] = (0, 255, 0)
+    return res
+
 
 class DocumentAnalyzer:
     def __init__(self, scale=0.23, footprint_size=8, model='../experiments/normal/model'):
@@ -28,12 +41,21 @@ class DocumentAnalyzer:
         self.__restore_path = model
         self.__footprint_size = footprint_size
 
-    def get_document_paragraphs(self, document_path, line_coords=None, plot_progress=False):
+    def get_document_paragraphs(self, document_path, axarr, or_img, line_coords=None, plot_progress=False):
         img, origin_height, origin_width = self.load_img(document_path)
+        axarr[0][0].axis('off')
+        axarr[0][0].imshow(img)
         probability_maps = self.get_probability_mask(img)
         segmentation_mask = self.get_segmentation_map(probability_maps)
-        clusters_labels = self.label_clustering(segmentation_mask)
+        axarr[0][1].axis('off')
+        axarr[0][1].imshow(segmentation_mask)
+        clusters_labels = self.label_clustering(segmentation_mask, axarr)
+        axarr[1][0].axis('off')
+        axarr[1][0].imshow(clusters_labels)
         coordinates = self.get_coordinates(clusters_labels, origin_width, origin_height)
+        res_img = get_img_coords(or_img, coordinates)
+        axarr[1][1].axis('off')
+        axarr[1][1].imshow(res_img)
         coordinates = paragraphs_postprocessing(coordinates)
 
         return coordinates, origin_width, origin_height
@@ -106,7 +128,9 @@ class DocumentAnalyzer:
         return img, height, width
 
     @staticmethod
-    def label_clustering(segmentation_mask):
+    def label_clustering(segmentation_mask,axarr):
         np.putmask(segmentation_mask, segmentation_mask == 2, 0)
+        axarr[0][2].axis('off')
+        axarr[0][2].imshow(segmentation_mask)
         labels = measure.label(segmentation_mask, background=0)
         return labels
