@@ -23,6 +23,7 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw
 
+allowed_extensions = ['.jpg', '.jpeg', '.png']
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -65,38 +66,26 @@ def main():
     analyzer = DocumentAnalyzer(model=args.model)
 
     names = os.listdir(input_path)
-    images_names = [filename for filename in names if filename.endswith('.jpeg')]
-    xml_names = [filename for filename in names if filename.endswith('.xml')]
 
     if not os.path.exists(args.output_path):
         os.makedirs(args.output_path)
 
-    length = len(images_names)
+    length = len(names)
     count = 0
-    for img in images_names:
-        filename = img.replace('.jpeg', '')
-        xml_name = img.replace('.jpeg', '.xml')
-        
-        if xml_name in xml_names:
-            baseline_median = get_baseline_median(input_path + xml_name)
-            
-            if baseline_median > 0:
-                median_scale = (32 / baseline_median) * scale
-            else:
-                median_scale = scale
-        else:
-            median_scale = scale
+    for img in names:
+        filename, file_extension = os.path.splitext(img)        
 
-        analyzer.__scale = median_scale
+        if file_extension.lower() in allowed_extensions:         
+            analyzer.__scale = scale
 
-        coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img)
-        xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
+            coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img)
+            xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
 
 
-        with open('{}/{}.xml'.format(args.output_path, os.path.splitext(filename)[0]), 'wb') as f:
-            f.write(xml_string)
+            with open('{}/{}.xml'.format(args.output_path, os.path.splitext(filename)[0]), 'wb') as f:
+                f.write(xml_string)
 
-        count += 1
+            count += 1
         print('Completed: {}/{}'.format(count, length))
     return 0
 
