@@ -36,7 +36,7 @@ def parse_arguments():
     parser.add_argument(
         '-o', '--output-path', help='Path where save xml files.',
         default='./detect_output', required=False)
-
+    parser.add_argument('-n', action='store_true')
     args = parser.parse_args()
     return args 
 
@@ -78,7 +78,7 @@ def main():
         if file_extension.lower() in allowed_extensions:         
             analyzer.__scale = scale
 
-            coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img)
+            coordinates, img_height, img_width = analyzer.get_document_paragraphs(input_path + img, no_layout=args.n)
             xml_string = HelperMethods.create_page_xml(coordinates, img_width, img_height, filename)
 
 

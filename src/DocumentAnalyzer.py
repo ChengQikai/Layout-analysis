@@ -28,13 +28,16 @@ class DocumentAnalyzer:
         self.__restore_path = model
         self.__footprint_size = footprint_size
 
-    def get_document_paragraphs(self, document_path, line_coords=None, plot_progress=False):
+    def get_document_paragraphs(self, document_path, line_coords=None, no_layout=False):
         img, origin_height, origin_width = self.load_img(document_path)
-        probability_maps = self.get_probability_mask(img)
-        segmentation_mask = self.get_segmentation_map(probability_maps)
-        clusters_labels = self.label_clustering(segmentation_mask)
-        coordinates = self.get_coordinates(clusters_labels, origin_width, origin_height)
-        coordinates = paragraphs_postprocessing(coordinates)
+        if no_layout == False:
+            probability_maps = self.get_probability_mask(img)
+            segmentation_mask = self.get_segmentation_map(probability_maps)
+            clusters_labels = self.label_clustering(segmentation_mask)
+            coordinates = self.get_coordinates(clusters_labels, origin_width, origin_height)
+            coordinates = paragraphs_postprocessing(coordinates)
+        else:
+            coordinates = []
 
         return coordinates, origin_width, origin_height
 
